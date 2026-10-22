@@ -64,7 +64,9 @@ def main() -> None:
     try:
         start = time.perf_counter()
         answer = get_llm(settings).invoke("Answer in one word: what is the capital of Italy?")
-        print(f"OK    Chat model answered {answer.content.strip()!r} "
+        # .text gives plain text for every provider. Gemini can return
+        # .content as a list of parts instead of a string.
+        print(f"OK    Chat model answered {answer.text.strip()!r} "
               f"in {time.perf_counter() - start:.1f} s")
 
         start = time.perf_counter()

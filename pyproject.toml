@@ -5,6 +5,7 @@ description = "Ask questions about your PDFs: a RAG question-answering bot with 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "gradio>=6.0",
     "langchain-chroma>=1.0",
     "langchain-core>=1.0",
     "langchain-ollama>=1.0",

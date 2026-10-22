@@ -35,7 +35,8 @@ QA_PROMPT = ChatPromptTemplate.from_messages(
             "system",
             "You answer questions about the user's documents. Use only the numbered "
             "context passages below. If they don't contain the answer, reply exactly: "
-            f'"{NO_ANSWER}" Keep answers short: at most three sentences.\n\n'
+            f'"{NO_ANSWER}" Keep answers short: at most three sentences. '
+            "Don't mention the passage numbers; the sources are shown separately.\n\n"
             "Context:\n{context}",
         ),
         ("human", "{question}"),

@@ -14,6 +14,7 @@ def clean_env(monkeypatch):
     for name in [
         "LLM_PROVIDER", "OLLAMA_MODEL", "OLLAMA_BASE_URL", "GEMINI_MODEL",
         "GOOGLE_API_KEY", "EMBEDDINGS_PROVIDER", "OLLAMA_EMBED_MODEL", "HF_EMBED_MODEL",
+        "GEMINI_EMBED_MODEL",
     ]:
         monkeypatch.delenv(name, raising=False)
     return monkeypatch
@@ -53,12 +54,25 @@ def test_unknown_providers_raise(clean_env):
 
 def test_gemini_needs_api_key(clean_env):
     clean_env.setenv("LLM_PROVIDER", "gemini")
-    with pytest.raises(ValueError, match="GOOGLE_API_KEY"):
+    clean_env.setenv("EMBEDDINGS_PROVIDER", "gemini")
+    with pytest.raises(ValueError, match="LLM_PROVIDER=gemini needs GOOGLE_API_KEY"):
         get_llm()
+    with pytest.raises(ValueError, match="EMBEDDINGS_PROVIDER=gemini needs GOOGLE_API_KEY"):
+        get_embeddings()
+
+
+def test_gemini_embeddings(clean_env):
+    pytest.importorskip("langchain_google_genai")  # only with the 'gemini' extra
+    clean_env.setenv("EMBEDDINGS_PROVIDER", "gemini")
+    clean_env.setenv("GOOGLE_API_KEY", "fake-key-for-tests")
+    embeddings = get_embeddings()
+    assert type(embeddings).__name__ == "GoogleGenerativeAIEmbeddings"
+    assert (embeddings.model, embeddings.output_dimensionality) == ("gemini-embedding-2", 768)
+    assert "gemini-embedding-2 (gemini)" in describe()
 
 
 def test_gemini_llm(clean_env):
-    pytest.importorskip("langchain_google_genai")  # only with the 'cloud' extra
+    pytest.importorskip("langchain_google_genai")  # only with the 'gemini' extra
     clean_env.setenv("LLM_PROVIDER", "gemini")
     clean_env.setenv("GOOGLE_API_KEY", "fake-key-for-tests")
     llm = get_llm()
@@ -74,9 +88,12 @@ def test_missing_cloud_packages_explain_the_fix(clean_env):
     clean_env.setenv("GOOGLE_API_KEY", "fake-key-for-tests")
     clean_env.setenv("EMBEDDINGS_PROVIDER", "huggingface")
 
-    with pytest.raises(MissingCloudPackages, match="uv sync --extra cloud"):
+    with pytest.raises(MissingCloudPackages, match="uv sync --extra gemini"):
         get_llm()
-    with pytest.raises(MissingCloudPackages, match="torch is missing"):
+    with pytest.raises(MissingCloudPackages, match="torch is missing.*--extra hf"):
+        get_embeddings()
+    clean_env.setenv("EMBEDDINGS_PROVIDER", "gemini")
+    with pytest.raises(MissingCloudPackages, match="uv sync --extra gemini"):
         get_embeddings()
 
 

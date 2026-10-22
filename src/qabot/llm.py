@@ -1,14 +1,15 @@
 """Create the answer model and the embedding model.
 
 Replaces the lab's get_llm() (WatsonxLLM) and watsonx_embedding()
-(WatsonxEmbeddings). Two setups are supported:
+(WatsonxEmbeddings). Providers are chosen in .env:
 
-    Local (default)  Granite 4 for answers and Granite Embedding 278M,
-                     both through Ollama on your own computer.
-    Cloud            Gemini (free API tier) for answers, and the same Granite
-                     embedding model run on CPU with sentence-transformers.
+    Answers      ollama (Granite 4, local, default) or gemini (free API tier)
+    Embeddings   ollama       Granite Embedding 278M, local (default)
+                 huggingface  the same Granite model on CPU, no Ollama needed
+                 gemini       Gemini Embedding through the API: no model in
+                              memory, so it fits small servers (the deployed demo)
 
-The cloud packages are imported inside the functions, so the local setup
+The optional packages are imported inside the functions, so the local setup
 works without installing them.
 """
 
@@ -18,17 +19,26 @@ from langchain_core.language_models import BaseChatModel
 from qabot.config import MAX_NEW_TOKENS, TEMPERATURE, Settings, load_settings
 
 LLM_PROVIDERS = ("ollama", "gemini")
-EMBEDDINGS_PROVIDERS = ("ollama", "huggingface")
+EMBEDDINGS_PROVIDERS = ("ollama", "huggingface", "gemini")
+
+# Gemini Embedding returns 3072 numbers by default. 768 matches Granite
+# Embedding's size and uses a quarter of the memory in the vector store.
+GEMINI_EMBED_DIMENSIONS = 768
 
 
 class MissingCloudPackages(ImportError):
-    """A cloud provider was chosen but its packages aren't installed."""
+    """A provider was chosen but its optional packages aren't installed."""
 
-    def __init__(self, setting: str, error: ImportError):
+    def __init__(self, setting: str, error: ImportError, extra: str):
         super().__init__(
-            f"{setting} needs the cloud packages ({error.name} is missing). "
-            "Install them with: uv sync --extra cloud"
+            f"{setting} needs extra packages ({error.name} is missing). "
+            f"Install them with: uv sync --extra {extra}"
         )
+
+
+def _require_gemini_key(settings: Settings, setting: str) -> None:
+    if not settings.google_api_key:
+        raise ValueError(f"{setting} needs GOOGLE_API_KEY in .env.")
 
 
 def get_llm(settings: Settings | None = None) -> BaseChatModel:
@@ -46,12 +56,11 @@ def get_llm(settings: Settings | None = None) -> BaseChatModel:
         )
 
     if settings.llm_provider == "gemini":
-        if not settings.google_api_key:
-            raise ValueError("LLM_PROVIDER=gemini needs GOOGLE_API_KEY in .env.")
+        _require_gemini_key(settings, "LLM_PROVIDER=gemini")
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError as error:
-            raise MissingCloudPackages("LLM_PROVIDER=gemini", error) from error
+            raise MissingCloudPackages("LLM_PROVIDER=gemini", error, "gemini") from error
 
         return ChatGoogleGenerativeAI(
             model=settings.gemini_model,
@@ -69,8 +78,7 @@ def get_embeddings(settings: Settings | None = None) -> Embeddings:
     """Return the model that turns text chunks into vectors (lab: watsonx_embedding).
 
     The lab sets TRUNCATE_INPUT_TOKENS: 3, which embeds only the first three
-    tokens of each chunk. Both options here embed the whole chunk (Granite
-    Embedding reads up to 512 tokens).
+    tokens of each chunk. All options here embed the whole chunk.
     """
     settings = settings or load_settings()
 
@@ -87,7 +95,7 @@ def get_embeddings(settings: Settings | None = None) -> Embeddings:
             import torch
             from langchain_huggingface import HuggingFaceEmbeddings
         except ImportError as error:
-            raise MissingCloudPackages("EMBEDDINGS_PROVIDER=huggingface", error) from error
+            raise MissingCloudPackages("EMBEDDINGS_PROVIDER=huggingface", error, "hf") from error
 
         return HuggingFaceEmbeddings(
             model_name=settings.hf_embed_model,
@@ -95,6 +103,21 @@ def get_embeddings(settings: Settings | None = None) -> Embeddings:
             # float32 is the fast precision on CPU.
             model_kwargs={"device": "cpu", "model_kwargs": {"dtype": torch.float32}},
             encode_kwargs={"normalize_embeddings": True},  # unit length, for cosine similarity
+        )
+
+    if settings.embeddings_provider == "gemini":
+        _require_gemini_key(settings, "EMBEDDINGS_PROVIDER=gemini")
+        try:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        except ImportError as error:
+            raise MissingCloudPackages("EMBEDDINGS_PROVIDER=gemini", error, "gemini") from error
+
+        # Chunks are embedded as RETRIEVAL_DOCUMENT and questions as
+        # RETRIEVAL_QUERY (the class's default), which suits search.
+        return GoogleGenerativeAIEmbeddings(
+            model=settings.gemini_embed_model,
+            google_api_key=settings.google_api_key,
+            output_dimensionality=GEMINI_EMBED_DIMENSIONS,
         )
 
     raise ValueError(
@@ -107,9 +130,9 @@ def describe(settings: Settings | None = None) -> str:
     """One line naming the models in use, for scripts and the app."""
     settings = settings or load_settings()
     llm = settings.ollama_model if settings.llm_provider == "ollama" else settings.gemini_model
-    emb = (
-        settings.ollama_embed_model
-        if settings.embeddings_provider == "ollama"
-        else settings.hf_embed_model
-    )
+    emb = {
+        "ollama": settings.ollama_embed_model,
+        "huggingface": settings.hf_embed_model,
+        "gemini": settings.gemini_embed_model,
+    }.get(settings.embeddings_provider, settings.embeddings_provider)
     return f"answers: {llm} ({settings.llm_provider}), embeddings: {emb} ({settings.embeddings_provider})"

@@ -15,12 +15,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Only needed for the cloud setup (Gemini answers + Granite embeddings on CPU).
-cloud = [
-    "langchain-google-genai>=4.0",
+# Gemini for answers and/or embeddings (the deployed demo uses only this).
+gemini = ["langchain-google-genai>=4.0"]
+# Granite Embedding on CPU without Ollama (brings in PyTorch, a large download).
+hf = [
     "langchain-huggingface>=1.0",
     "sentence-transformers>=3.0",
 ]
+# Both of the above.
+cloud = ["qabot[gemini,hf]"]
 
 [build-system]
 requires = ["hatchling"]
@@ -33,6 +36,7 @@ packages = ["src/qabot"]
 dev = [
     "langchain-classic>=1.0",
     "pytest>=8",
+    "pyyaml>=6.0",
     "reportlab>=4.0",
 ]
 

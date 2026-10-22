@@ -31,6 +31,7 @@ class Settings:
     embeddings_provider: str
     ollama_embed_model: str
     hf_embed_model: str
+    gemini_embed_model: str
 
 
 def load_settings() -> Settings:
@@ -50,4 +51,5 @@ def load_settings() -> Settings:
         hf_embed_model=os.getenv(
             "HF_EMBED_MODEL", "ibm-granite/granite-embedding-278m-multilingual"
         ),
+        gemini_embed_model=os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-2"),
     )

@@ -30,6 +30,7 @@ packages = ["src/qabot"]
 
 [dependency-groups]
 dev = [
+    "langchain-classic>=1.0",
     "pytest>=8",
     "reportlab>=4.0",
 ]

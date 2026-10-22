@@ -70,11 +70,14 @@ def get_embeddings(settings: Settings | None = None) -> Embeddings:
         )
 
     if settings.embeddings_provider == "huggingface":
+        import torch
         from langchain_huggingface import HuggingFaceEmbeddings
 
         return HuggingFaceEmbeddings(
             model_name=settings.hf_embed_model,
-            model_kwargs={"device": "cpu"},
+            # The model is stored in bfloat16, which most CPUs run slowly.
+            # float32 is the fast precision on CPU.
+            model_kwargs={"device": "cpu", "model_kwargs": {"dtype": torch.float32}},
             encode_kwargs={"normalize_embeddings": True},  # unit length, for cosine similarity
         )
 

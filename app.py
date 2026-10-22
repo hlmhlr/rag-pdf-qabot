@@ -1,11 +1,14 @@
-"""Web app: upload PDFs and ask questions about them (lab section: Gradio interface).
+"""Start the web app: upload PDFs and ask questions about them.
 
-The lab's interface: a file upload, a question box and an answer box, wired
-to one function. Differences from the lab:
-    - several PDFs can be uploaded at once (file_count="multiple");
-    - allow_flagging is now called flagging_mode in Gradio 6;
+The page and its handlers are in src/qabot/ui.py; this file only creates the
+models and launches the app. Hugging Face Spaces runs this same file.
+
+Differences from the lab's launch:
     - no share=True: the lab's public tunnel link would let anyone on the
-      internet use your models. The app runs on your own computer only.
+      internet use your models. Locally the app is only on your computer;
+      online it's deployed on purpose (Stage 5).
+    - max_file_size makes Gradio refuse oversized files before they reach
+      the bot.
 
 Run:  uv run python app.py      then open http://127.0.0.1:7860
 """
@@ -13,28 +16,19 @@ Run:  uv run python app.py      then open http://127.0.0.1:7860
 import gradio as gr
 
 from qabot.index import QABot
-from qabot.llm import get_embeddings, get_llm
+from qabot.ingest import MAX_TOTAL_MB
+from qabot.llm import describe, get_embeddings, get_llm
+from qabot.paths import SAMPLES_DIR
+from qabot.ui import build_app
 
-bot = QABot(get_llm(), get_embeddings())
+SAMPLES = sorted(str(p) for p in SAMPLES_DIR.glob("*.pdf"))
+EXAMPLES = [
+    [SAMPLES, "How many days of annual leave do full-time employees get?"],
+    [SAMPLES, "What does error E07 on the display mean?"],
+    [SAMPLES, "Can employees get a discount on an e-bike, and how long is the battery covered?"],
+]
 
-
-def retriever_qa(files: list[str] | None, query: str) -> str:
-    """The lab's function: answer a question about the uploaded files."""
-    answer = bot.ask(files or [], query)
-    return answer.text
-
-
-rag_application = gr.Interface(
-    fn=retriever_qa,
-    flagging_mode="never",
-    inputs=[
-        gr.File(label="Upload PDF files", file_count="multiple", file_types=[".pdf"]),
-        gr.Textbox(label="Input query", lines=2, placeholder="Type your question here..."),
-    ],
-    outputs=gr.Textbox(label="Output"),
-    title="RAG PDF QA Bot",
-    description="Upload one or more PDF documents and ask any question about them.",
-)
+app = build_app(QABot(get_llm(), get_embeddings()), models=describe(), examples=EXAMPLES)
 
 if __name__ == "__main__":
-    rag_application.launch(server_port=7860)
+    app.launch(server_port=7860, max_file_size=f"{MAX_TOTAL_MB}mb", theme=gr.themes.Soft())

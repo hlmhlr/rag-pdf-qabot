@@ -1,0 +1,17 @@
+# Python packages for the Hugging Face Space (cloud setup).
+# Gradio itself is installed by the Space from sdk_version in README.md.
+
+# PyTorch's CPU-only build: the free Space has no GPU, and the default build
+# from PyPI includes about 2 GB of CUDA libraries it would never use.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+
+langchain-chroma>=1.0
+langchain-core>=1.0
+langchain-ollama>=1.0
+langchain-text-splitters>=1.0
+pypdf>=6.0
+python-dotenv>=1.0
+langchain-google-genai>=4.0
+langchain-huggingface>=1.0
+sentence-transformers>=3.0

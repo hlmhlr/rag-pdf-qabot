@@ -1,0 +1,39 @@
+# Deploy the app to Hugging Face Spaces when a release tag (v0.1.0, v0.2.0, ...)
+# is pushed, after the tests pass. Can also be started by hand from the Actions tab.
+#
+# Repository settings needed (Settings > Secrets and variables > Actions):
+#   secrets:   HF_TOKEN (Hugging Face write token), GOOGLE_API_KEY (Gemini key)
+#   variables: HF_SPACE_ID (e.g. your-name/rag-pdf-qabot)
+name: deploy
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # Installs the locked Gradio version, which the Space is told to use.
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Deploy to Hugging Face Spaces
+        run: uv run --with huggingface_hub python deploy/deploy_space.py
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}

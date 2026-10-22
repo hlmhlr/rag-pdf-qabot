@@ -13,13 +13,23 @@ Differences from the lab's launch:
 Run:  uv run python app.py      then open http://127.0.0.1:7860
 """
 
+import sys
+from pathlib import Path
+
 import gradio as gr
 
-from qabot.index import QABot
-from qabot.ingest import MAX_TOTAL_MB
-from qabot.llm import describe, get_embeddings, get_llm
-from qabot.paths import SAMPLES_DIR
-from qabot.ui import build_app
+# Locally, uv installs the qabot package. On Hugging Face Spaces only
+# requirements.txt is installed, so the package is imported from src/.
+try:
+    import qabot  # noqa: F401
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
+from qabot.index import QABot  # noqa: E402
+from qabot.ingest import MAX_TOTAL_MB  # noqa: E402
+from qabot.llm import describe, get_embeddings, get_llm  # noqa: E402
+from qabot.paths import SAMPLES_DIR  # noqa: E402
+from qabot.ui import build_app  # noqa: E402
 
 SAMPLES = sorted(str(p) for p in SAMPLES_DIR.glob("*.pdf"))
 EXAMPLES = [

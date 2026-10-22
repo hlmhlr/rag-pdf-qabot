@@ -5,8 +5,11 @@ description = "Ask questions about your PDFs: a RAG question-answering bot with 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "langchain-chroma>=1.0",
     "langchain-core>=1.0",
     "langchain-ollama>=1.0",
+    "langchain-text-splitters>=1.0",
+    "pypdf>=6.0",
     "python-dotenv>=1.0",
 ]
 
@@ -26,7 +29,10 @@ build-backend = "hatchling.build"
 packages = ["src/qabot"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "reportlab>=4.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,9 +1,11 @@
 """Tests for provider selection. No model is called and nothing is downloaded."""
 
+import sys
+
 import pytest
 
 from qabot.config import MAX_NEW_TOKENS, TEMPERATURE, load_settings
-from qabot.llm import describe, get_embeddings, get_llm
+from qabot.llm import MissingCloudPackages, describe, get_embeddings, get_llm
 
 
 @pytest.fixture
@@ -62,6 +64,20 @@ def test_gemini_llm(clean_env):
     llm = get_llm()
     assert type(llm).__name__ == "ChatGoogleGenerativeAI"
     assert llm.max_output_tokens == MAX_NEW_TOKENS
+
+
+def test_missing_cloud_packages_explain_the_fix(clean_env):
+    # A None entry in sys.modules makes "import x" fail, as if x weren't installed.
+    clean_env.setitem(sys.modules, "langchain_google_genai", None)
+    clean_env.setitem(sys.modules, "torch", None)
+    clean_env.setenv("LLM_PROVIDER", "gemini")
+    clean_env.setenv("GOOGLE_API_KEY", "fake-key-for-tests")
+    clean_env.setenv("EMBEDDINGS_PROVIDER", "huggingface")
+
+    with pytest.raises(MissingCloudPackages, match="uv sync --extra cloud"):
+        get_llm()
+    with pytest.raises(MissingCloudPackages, match="torch is missing"):
+        get_embeddings()
 
 
 def test_describe_names_both_models(clean_env):

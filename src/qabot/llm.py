@@ -21,6 +21,16 @@ LLM_PROVIDERS = ("ollama", "gemini")
 EMBEDDINGS_PROVIDERS = ("ollama", "huggingface")
 
 
+class MissingCloudPackages(ImportError):
+    """A cloud provider was chosen but its packages aren't installed."""
+
+    def __init__(self, setting: str, error: ImportError):
+        super().__init__(
+            f"{setting} needs the cloud packages ({error.name} is missing). "
+            "Install them with: uv sync --extra cloud"
+        )
+
+
 def get_llm(settings: Settings | None = None) -> BaseChatModel:
     """Return the chat model that writes the answers (lab: get_llm)."""
     settings = settings or load_settings()
@@ -38,7 +48,10 @@ def get_llm(settings: Settings | None = None) -> BaseChatModel:
     if settings.llm_provider == "gemini":
         if not settings.google_api_key:
             raise ValueError("LLM_PROVIDER=gemini needs GOOGLE_API_KEY in .env.")
-        from langchain_google_genai import ChatGoogleGenerativeAI
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+        except ImportError as error:
+            raise MissingCloudPackages("LLM_PROVIDER=gemini", error) from error
 
         return ChatGoogleGenerativeAI(
             model=settings.gemini_model,
@@ -70,8 +83,11 @@ def get_embeddings(settings: Settings | None = None) -> Embeddings:
         )
 
     if settings.embeddings_provider == "huggingface":
-        import torch
-        from langchain_huggingface import HuggingFaceEmbeddings
+        try:
+            import torch
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError as error:
+            raise MissingCloudPackages("EMBEDDINGS_PROVIDER=huggingface", error) from error
 
         return HuggingFaceEmbeddings(
             model_name=settings.hf_embed_model,

@@ -1,0 +1,32 @@
+[project]
+name = "qabot"
+version = "0.1.0"
+description = "Ask questions about your PDFs: a RAG question-answering bot with LangChain, Chroma and Gradio, running locally on IBM Granite or deployed with Gemini."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-core>=1.0",
+    "langchain-ollama>=1.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+# Only needed for the cloud setup (Gemini answers + Granite embeddings on CPU).
+cloud = [
+    "langchain-google-genai>=4.0",
+    "langchain-huggingface>=1.0",
+    "sentence-transformers>=3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qabot"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -15,9 +15,11 @@ Contents
     index_files()      runs on upload: build the index, return a status line
     answer_question()  runs on "Ask": answer, sources and status
     build_app()        the page layout, wired to the handlers
+    server_settings()  where to listen: this computer only, or a host's PORT
 """
 
 import logging
+import os
 from functools import partial
 
 import gradio as gr
@@ -112,3 +114,16 @@ def build_app(bot: QABot, models: str = "", examples: list[list] | None = None) 
         ask.click(**ask_event, api_name="ask")
         question.submit(**ask_event, api_visibility="private")
     return app
+
+
+def server_settings(env: dict[str, str] | None = None) -> dict:
+    """Where the app listens, for app.launch().
+
+    Locally: port 7860 on this computer only (Gradio's default address).
+    On a host like Render, which sets PORT: that port on every network
+    interface (0.0.0.0), so the host's router can reach the app.
+    """
+    env = os.environ if env is None else env
+    if "PORT" in env:
+        return {"server_name": "0.0.0.0", "server_port": int(env["PORT"])}
+    return {"server_port": 7860}

@@ -1,9 +1,8 @@
-# Deploy the app to Hugging Face Spaces when a release tag (v0.1.0, v0.2.0, ...)
-# is pushed, after the tests pass. Can also be started by hand from the Actions tab.
+# Deploy the live demo on Render when a release tag (v0.1.0, v0.2.0, ...) is
+# pushed, after the tests pass. Can also be started by hand from the Actions tab.
 #
-# Repository settings needed (Settings > Secrets and variables > Actions):
-#   secrets:   HF_TOKEN (Hugging Face write token), GOOGLE_API_KEY (Gemini key)
-#   variables: HF_SPACE_ID (e.g. your-name/rag-pdf-qabot)
+# Repository setting needed (Settings > Secrets and variables > Actions > Secrets):
+#   RENDER_DEPLOY_HOOK_URL  the service's deploy hook, from Render > Settings > Deploy Hook
 name: deploy
 
 on:
@@ -19,21 +18,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Install uv and Python 3.12
-        uses: astral-sh/setup-uv@v10.3.2
-        with:
-          python-version: "3.12"
-          enable-cache: true
-
-      # Installs the locked Gradio version, which the Space is told to use.
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Deploy to Hugging Face Spaces
-        run: uv run --with huggingface_hub python deploy/deploy_space.py
+      # ref= tells Render to deploy exactly the commit that was tested,
+      # not whatever is newest on the branch.
+      - name: Trigger the Render deploy
+        run: curl --fail --silent --show-error -X POST "$HOOK&ref=$GITHUB_SHA"
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

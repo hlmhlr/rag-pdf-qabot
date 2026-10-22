@@ -1,0 +1,24 @@
+# Render Blueprint: the live demo as a free web service.
+# Created once from the Render dashboard (New > Blueprint); after that,
+# .github/workflows/deploy.yml deploys each release tag once the tests pass.
+services:
+  - type: web
+    name: rag-pdf-qabot
+    runtime: python
+    plan: free            # 512 MB RAM, sleeps after 15 minutes without visitors
+    region: frankfurt
+    # Install exactly the locked versions the tests ran with, plus Gemini.
+    # No dev tools and no PyTorch: the demo uses Gemini for embeddings too.
+    buildCommand: pip install uv && uv sync --locked --no-dev --extra gemini
+    startCommand: .venv/bin/python app.py
+    healthCheckPath: /
+    autoDeployTrigger: off  # deploys come from the release workflow instead
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.12"
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: EMBEDDINGS_PROVIDER
+        value: gemini
+      - key: GOOGLE_API_KEY
+        sync: false         # entered in the dashboard, never stored in the repo

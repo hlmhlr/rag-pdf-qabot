@@ -1,0 +1,29 @@
+# Run the test suite on every push and pull request.
+# The tests use fake models, so no Ollama, GPU or API key is needed here.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:  # lets deploy.yml run the tests before deploying
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # langchain-google-genai is added on the fly so the Gemini test runs too,
+      # without installing the full cloud extra (PyTorch is a large download).
+      - name: Run tests
+        run: uv run --with langchain-google-genai pytest -v
